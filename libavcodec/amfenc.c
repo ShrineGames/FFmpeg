@@ -60,30 +60,32 @@ const enum AVPixelFormat ff_amf_pix_fmts[] = {
 #if CONFIG_DXVA2
     AV_PIX_FMT_DXVA2_VLD,
 #endif
-    AV_PIX_FMT_NONE
-};
+    AV_PIX_FMT_NONE};
 
-typedef struct FormatMap {
-    enum AVPixelFormat       av_format;
-    enum AMF_SURFACE_FORMAT  amf_format;
+typedef struct FormatMap
+{
+    enum AVPixelFormat av_format;
+    enum AMF_SURFACE_FORMAT amf_format;
 } FormatMap;
 
 static const FormatMap format_map[] =
-{
-    { AV_PIX_FMT_NONE,       AMF_SURFACE_UNKNOWN },
-    { AV_PIX_FMT_NV12,       AMF_SURFACE_NV12 },
-    { AV_PIX_FMT_BGR0,       AMF_SURFACE_BGRA },
-    { AV_PIX_FMT_RGB0,       AMF_SURFACE_RGBA },
-    { AV_PIX_FMT_GRAY8,      AMF_SURFACE_GRAY8 },
-    { AV_PIX_FMT_YUV420P,    AMF_SURFACE_YUV420P },
-    { AV_PIX_FMT_YUYV422,    AMF_SURFACE_YUY2 },
+    {
+        {AV_PIX_FMT_NONE, AMF_SURFACE_UNKNOWN},
+        {AV_PIX_FMT_NV12, AMF_SURFACE_NV12},
+        {AV_PIX_FMT_BGR0, AMF_SURFACE_BGRA},
+        {AV_PIX_FMT_RGB0, AMF_SURFACE_RGBA},
+        {AV_PIX_FMT_GRAY8, AMF_SURFACE_GRAY8},
+        {AV_PIX_FMT_YUV420P, AMF_SURFACE_YUV420P},
+        {AV_PIX_FMT_YUYV422, AMF_SURFACE_YUY2},
 };
 
 static enum AMF_SURFACE_FORMAT amf_av_to_amf_format(enum AVPixelFormat fmt)
 {
     int i;
-    for (i = 0; i < amf_countof(format_map); i++) {
-        if (format_map[i].av_format == fmt) {
+    for (i = 0; i < amf_countof(format_map); i++)
+    {
+        if (format_map[i].av_format == fmt)
+        {
             return format_map[i].amf_format;
         }
     }
@@ -91,9 +93,9 @@ static enum AMF_SURFACE_FORMAT amf_av_to_amf_format(enum AVPixelFormat fmt)
 }
 
 static void AMF_CDECL_CALL AMFTraceWriter_Write(AMFTraceWriter *pThis,
-    const wchar_t *scope, const wchar_t *message)
+                                                const wchar_t *scope, const wchar_t *message)
 {
-    AmfTraceWriter *tracer = (AmfTraceWriter*)pThis;
+    AmfTraceWriter *tracer = (AmfTraceWriter *)pThis;
     av_log(tracer->avctx, AV_LOG_DEBUG, "%ls: %ls", scope, message); // \n is provided from AMF
 }
 
@@ -102,34 +104,35 @@ static void AMF_CDECL_CALL AMFTraceWriter_Flush(AMFTraceWriter *pThis)
 }
 
 static AMFTraceWriterVtbl tracer_vtbl =
-{
-    .Write = AMFTraceWriter_Write,
-    .Flush = AMFTraceWriter_Flush,
+    {
+        .Write = AMFTraceWriter_Write,
+        .Flush = AMFTraceWriter_Flush,
 };
 
 static int amf_load_library(AVCodecContext *avctx)
 {
-    AmfContext        *ctx = avctx->priv_data;
-    AMFInit_Fn         init_fun;
+    AmfContext *ctx = avctx->priv_data;
+    AMFInit_Fn init_fun;
     AMFQueryVersion_Fn version_fun;
-    AMF_RESULT         res;
+    AMF_RESULT res;
 
     ctx->delayed_frame = av_frame_alloc();
-    if (!ctx->delayed_frame) {
+    if (!ctx->delayed_frame)
+    {
         return AVERROR(ENOMEM);
     }
     // hardcoded to current HW queue size - will auto-realloc if too small
     ctx->timestamp_list = av_fifo_alloc2(avctx->max_b_frames + 16, sizeof(int64_t),
                                          AV_FIFO_FLAG_AUTO_GROW);
-    if (!ctx->timestamp_list) {
+    if (!ctx->timestamp_list)
+    {
         return AVERROR(ENOMEM);
     }
     ctx->dts_delay = 0;
 
-
     ctx->library = dlopen(AMF_DLL_NAMEA, RTLD_NOW | RTLD_LOCAL);
     AMF_RETURN_IF_FALSE(ctx, ctx->library != NULL,
-        AVERROR_UNKNOWN, "DLL %s failed to open\n", AMF_DLL_NAMEA);
+                        AVERROR_UNKNOWN, "DLL %s failed to open\n", AMF_DLL_NAMEA);
 
     init_fun = (AMFInit_Fn)dlsym(ctx->library, AMF_INIT_FUNCTION_NAME);
     AMF_RETURN_IF_FALSE(ctx, init_fun != NULL, AVERROR_UNKNOWN, "DLL %s failed to find function %s\n", AMF_DLL_NAMEA, AMF_INIT_FUNCTION_NAME);
@@ -155,7 +158,8 @@ static int amf_init_from_d3d11_device(AVCodecContext *avctx, AVD3D11VADeviceCont
     AMF_RESULT res;
 
     res = ctx->context->pVtbl->InitDX11(ctx->context, hwctx->device, AMF_DX11_1);
-    if (res != AMF_OK) {
+    if (res != AMF_OK)
+    {
         if (res == AMF_NOT_SUPPORTED)
             av_log(avctx, AV_LOG_ERROR, "AMF via D3D11 is not supported on the given device.\n");
         else
@@ -178,16 +182,20 @@ static int amf_init_from_dxva2_device(AVCodecContext *avctx, AVDXVA2DeviceContex
     int ret;
 
     hr = IDirect3DDeviceManager9_OpenDeviceHandle(hwctx->devmgr, &device_handle);
-    if (FAILED(hr)) {
+    if (FAILED(hr))
+    {
         av_log(avctx, AV_LOG_ERROR, "Failed to open device handle for Direct3D9 device: %lx.\n", (unsigned long)hr);
         return AVERROR_EXTERNAL;
     }
 
     hr = IDirect3DDeviceManager9_LockDevice(hwctx->devmgr, device_handle, &device, FALSE);
-    if (SUCCEEDED(hr)) {
+    if (SUCCEEDED(hr))
+    {
         IDirect3DDeviceManager9_UnlockDevice(hwctx->devmgr, device_handle, FALSE);
         ret = 0;
-    } else {
+    }
+    else
+    {
         av_log(avctx, AV_LOG_ERROR, "Failed to lock device handle for Direct3D9 device: %lx.\n", (unsigned long)hr);
         ret = AVERROR_EXTERNAL;
     }
@@ -201,7 +209,8 @@ static int amf_init_from_dxva2_device(AVCodecContext *avctx, AVDXVA2DeviceContex
 
     IDirect3DDevice9_Release(device);
 
-    if (res != AMF_OK) {
+    if (res != AMF_OK)
+    {
         if (res == AMF_NOT_SUPPORTED)
             av_log(avctx, AV_LOG_ERROR, "AMF via D3D9 is not supported on the given device.\n");
         else
@@ -217,7 +226,7 @@ static int amf_init_context(AVCodecContext *avctx)
 {
     AmfContext *ctx = avctx->priv_data;
     AMFContext1 *context1 = NULL;
-    AMF_RESULT  res;
+    AMF_RESULT res;
     av_unused int ret;
 
     ctx->hwsurfaces_in_queue = 0;
@@ -225,7 +234,7 @@ static int amf_init_context(AVCodecContext *avctx)
 
     // configure AMF logger
     // the return of these functions indicates old state and do not affect behaviour
-    ctx->trace->pVtbl->EnableWriter(ctx->trace, AMF_TRACE_WRITER_DEBUG_OUTPUT, ctx->log_to_dbg != 0 );
+    ctx->trace->pVtbl->EnableWriter(ctx->trace, AMF_TRACE_WRITER_DEBUG_OUTPUT, ctx->log_to_dbg != 0);
     if (ctx->log_to_dbg)
         ctx->trace->pVtbl->SetWriterLevel(ctx->trace, AMF_TRACE_WRITER_DEBUG_OUTPUT, AMF_TRACE_TRACE);
     ctx->trace->pVtbl->EnableWriter(ctx->trace, AMF_TRACE_WRITER_CONSOLE, 0);
@@ -234,23 +243,26 @@ static int amf_init_context(AVCodecContext *avctx)
     // connect AMF logger to av_log
     ctx->tracer.vtbl = &tracer_vtbl;
     ctx->tracer.avctx = avctx;
-    ctx->trace->pVtbl->RegisterWriter(ctx->trace, FFMPEG_AMF_WRITER_ID,(AMFTraceWriter*)&ctx->tracer, 1);
+    ctx->trace->pVtbl->RegisterWriter(ctx->trace, FFMPEG_AMF_WRITER_ID, (AMFTraceWriter *)&ctx->tracer, 1);
     ctx->trace->pVtbl->SetWriterLevel(ctx->trace, FFMPEG_AMF_WRITER_ID, AMF_TRACE_TRACE);
 
     res = ctx->factory->pVtbl->CreateContext(ctx->factory, &ctx->context);
     AMF_RETURN_IF_FALSE(ctx, res == AMF_OK, AVERROR_UNKNOWN, "CreateContext() failed with error %d\n", res);
 
     // If a device was passed to the encoder, try to initialise from that.
-    if (avctx->hw_frames_ctx) {
-        AVHWFramesContext *frames_ctx = (AVHWFramesContext*)avctx->hw_frames_ctx->data;
+    if (avctx->hw_frames_ctx)
+    {
+        AVHWFramesContext *frames_ctx = (AVHWFramesContext *)avctx->hw_frames_ctx->data;
 
-        if (amf_av_to_amf_format(frames_ctx->sw_format) == AMF_SURFACE_UNKNOWN) {
+        if (amf_av_to_amf_format(frames_ctx->sw_format) == AMF_SURFACE_UNKNOWN)
+        {
             av_log(avctx, AV_LOG_ERROR, "Format of input frames context (%s) is not supported by AMF.\n",
                    av_get_pix_fmt_name(frames_ctx->sw_format));
             return AVERROR(EINVAL);
         }
 
-        switch (frames_ctx->device_ctx->type) {
+        switch (frames_ctx->device_ctx->type)
+        {
 #if CONFIG_D3D11VA
         case AV_HWDEVICE_TYPE_D3D11VA:
             ret = amf_init_from_d3d11_device(avctx, frames_ctx->device_ctx->hwctx);
@@ -277,11 +289,13 @@ static int amf_init_context(AVCodecContext *avctx)
 
         if (frames_ctx->initial_pool_size > 0)
             ctx->hwsurfaces_in_queue_max = frames_ctx->initial_pool_size - 1;
+    }
+    else if (avctx->hw_device_ctx)
+    {
+        AVHWDeviceContext *device_ctx = (AVHWDeviceContext *)avctx->hw_device_ctx->data;
 
-    } else if (avctx->hw_device_ctx) {
-        AVHWDeviceContext *device_ctx = (AVHWDeviceContext*)avctx->hw_device_ctx->data;
-
-        switch (device_ctx->type) {
+        switch (device_ctx->type)
+        {
 #if CONFIG_D3D11VA
         case AV_HWDEVICE_TYPE_D3D11VA:
             ret = amf_init_from_d3d11_device(avctx, device_ctx->hwctx);
@@ -305,23 +319,31 @@ static int amf_init_context(AVCodecContext *avctx)
         ctx->hw_device_ctx = av_buffer_ref(avctx->hw_device_ctx);
         if (!ctx->hw_device_ctx)
             return AVERROR(ENOMEM);
-
-    } else {
+    }
+    else
+    {
         res = ctx->context->pVtbl->InitDX11(ctx->context, NULL, AMF_DX11_1);
-        if (res == AMF_OK) {
+        if (res == AMF_OK)
+        {
             av_log(avctx, AV_LOG_VERBOSE, "AMF initialisation succeeded via D3D11.\n");
-        } else {
+        }
+        else
+        {
             res = ctx->context->pVtbl->InitDX9(ctx->context, NULL);
-            if (res == AMF_OK) {
+            if (res == AMF_OK)
+            {
                 av_log(avctx, AV_LOG_VERBOSE, "AMF initialisation succeeded via D3D9.\n");
-            } else {
+            }
+            else
+            {
                 AMFGuid guid = IID_AMFContext1();
-                res = ctx->context->pVtbl->QueryInterface(ctx->context, &guid, (void**)&context1);
+                res = ctx->context->pVtbl->QueryInterface(ctx->context, &guid, (void **)&context1);
                 AMF_RETURN_IF_FALSE(ctx, res == AMF_OK, AVERROR_UNKNOWN, "CreateContext1() failed with error %d\n", res);
 
                 res = context1->pVtbl->InitVulkan(context1, NULL);
                 context1->pVtbl->Release(context1);
-                if (res != AMF_OK) {
+                if (res != AMF_OK)
+                {
                     if (res == AMF_NOT_SUPPORTED)
                         av_log(avctx, AV_LOG_ERROR, "AMF via Vulkan is not supported on the given device.\n");
                     else
@@ -337,25 +359,26 @@ static int amf_init_context(AVCodecContext *avctx)
 
 static int amf_init_encoder(AVCodecContext *avctx)
 {
-    AmfContext        *ctx = avctx->priv_data;
-    const wchar_t     *codec_id = NULL;
-    AMF_RESULT         res;
+    AmfContext *ctx = avctx->priv_data;
+    const wchar_t *codec_id = NULL;
+    AMF_RESULT res;
     enum AVPixelFormat pix_fmt;
 
-    switch (avctx->codec->id) {
-        case AV_CODEC_ID_H264:
-            codec_id = AMFVideoEncoderVCE_AVC;
-            break;
-        case AV_CODEC_ID_HEVC:
-            codec_id = AMFVideoEncoder_HEVC;
-            break;
-        default:
-            break;
+    switch (avctx->codec->id)
+    {
+    case AV_CODEC_ID_H264:
+        codec_id = AMFVideoEncoderVCE_AVC;
+        break;
+    case AV_CODEC_ID_HEVC:
+        codec_id = AMFVideoEncoder_HEVC;
+        break;
+    default:
+        break;
     }
     AMF_RETURN_IF_FALSE(ctx, codec_id != NULL, AVERROR(EINVAL), "Codec %d is not supported\n", avctx->codec->id);
 
     if (ctx->hw_frames_ctx)
-        pix_fmt = ((AVHWFramesContext*)ctx->hw_frames_ctx->data)->sw_format;
+        pix_fmt = ((AVHWFramesContext *)ctx->hw_frames_ctx->data)->sw_format;
     else
         pix_fmt = avctx->pix_fmt;
 
@@ -373,18 +396,21 @@ int av_cold ff_amf_encode_close(AVCodecContext *avctx)
 {
     AmfContext *ctx = avctx->priv_data;
 
-    if (ctx->delayed_surface) {
+    if (ctx->delayed_surface)
+    {
         ctx->delayed_surface->pVtbl->Release(ctx->delayed_surface);
         ctx->delayed_surface = NULL;
     }
 
-    if (ctx->encoder) {
+    if (ctx->encoder)
+    {
         ctx->encoder->pVtbl->Terminate(ctx->encoder);
         ctx->encoder->pVtbl->Release(ctx->encoder);
         ctx->encoder = NULL;
     }
 
-    if (ctx->context) {
+    if (ctx->context)
+    {
         ctx->context->pVtbl->Terminate(ctx->context);
         ctx->context->pVtbl->Release(ctx->context);
         ctx->context = NULL;
@@ -392,10 +418,12 @@ int av_cold ff_amf_encode_close(AVCodecContext *avctx)
     av_buffer_unref(&ctx->hw_device_ctx);
     av_buffer_unref(&ctx->hw_frames_ctx);
 
-    if (ctx->trace) {
+    if (ctx->trace)
+    {
         ctx->trace->pVtbl->UnregisterWriter(ctx->trace, FFMPEG_AMF_WRITER_ID);
     }
-    if (ctx->library) {
+    if (ctx->library)
+    {
         dlclose(ctx->library);
         ctx->library = NULL;
     }
@@ -411,76 +439,82 @@ int av_cold ff_amf_encode_close(AVCodecContext *avctx)
 }
 
 static int amf_copy_surface(AVCodecContext *avctx, const AVFrame *frame,
-    AMFSurface* surface)
+                            AMFSurface *surface)
 {
     AMFPlane *plane;
-    uint8_t  *dst_data[4];
-    int       dst_linesize[4];
-    int       planes;
-    int       i;
+    uint8_t *dst_data[4];
+    int dst_linesize[4];
+    int planes;
+    int i;
 
     planes = surface->pVtbl->GetPlanesCount(surface);
     av_assert0(planes < FF_ARRAY_ELEMS(dst_data));
 
-    for (i = 0; i < planes; i++) {
+    for (i = 0; i < planes; i++)
+    {
         plane = surface->pVtbl->GetPlaneAt(surface, i);
         dst_data[i] = plane->pVtbl->GetNative(plane);
         dst_linesize[i] = plane->pVtbl->GetHPitch(plane);
     }
     av_image_copy(dst_data, dst_linesize,
-        (const uint8_t**)frame->data, frame->linesize, frame->format,
-        avctx->width, avctx->height);
+                  (const uint8_t **)frame->data, frame->linesize, frame->format,
+                  avctx->width, avctx->height);
 
     return 0;
 }
 
 static int amf_copy_buffer(AVCodecContext *avctx, AVPacket *pkt, AMFBuffer *buffer)
 {
-    AmfContext      *ctx = avctx->priv_data;
-    int              ret;
+    AmfContext *ctx = avctx->priv_data;
+    int ret;
     AMFVariantStruct var = {0};
-    int64_t          timestamp = AV_NOPTS_VALUE;
-    int64_t          size = buffer->pVtbl->GetSize(buffer);
+    int64_t timestamp = AV_NOPTS_VALUE;
+    int64_t size = buffer->pVtbl->GetSize(buffer);
 
-    if ((ret = ff_get_encode_buffer(avctx, pkt, size, 0)) < 0) {
+    if ((ret = ff_get_encode_buffer(avctx, pkt, size, 0)) < 0)
+    {
         return ret;
     }
     memcpy(pkt->data, buffer->pVtbl->GetNative(buffer), size);
 
-    switch (avctx->codec->id) {
-        case AV_CODEC_ID_H264:
-            buffer->pVtbl->GetProperty(buffer, AMF_VIDEO_ENCODER_OUTPUT_DATA_TYPE, &var);
-            if(var.int64Value == AMF_VIDEO_ENCODER_OUTPUT_DATA_TYPE_IDR) {
-                pkt->flags = AV_PKT_FLAG_KEY;
-            }
-            break;
-        case AV_CODEC_ID_HEVC:
-            buffer->pVtbl->GetProperty(buffer, AMF_VIDEO_ENCODER_HEVC_OUTPUT_DATA_TYPE, &var);
-            if (var.int64Value == AMF_VIDEO_ENCODER_HEVC_OUTPUT_DATA_TYPE_IDR) {
-                pkt->flags = AV_PKT_FLAG_KEY;
-            }
-            break;
-        default:
-            break;
+    switch (avctx->codec->id)
+    {
+    case AV_CODEC_ID_H264:
+        buffer->pVtbl->GetProperty(buffer, AMF_VIDEO_ENCODER_OUTPUT_DATA_TYPE, &var);
+        if (var.int64Value == AMF_VIDEO_ENCODER_OUTPUT_DATA_TYPE_IDR)
+        {
+            pkt->flags = AV_PKT_FLAG_KEY;
+        }
+        break;
+    case AV_CODEC_ID_HEVC:
+        buffer->pVtbl->GetProperty(buffer, AMF_VIDEO_ENCODER_HEVC_OUTPUT_DATA_TYPE, &var);
+        if (var.int64Value == AMF_VIDEO_ENCODER_HEVC_OUTPUT_DATA_TYPE_IDR)
+        {
+            pkt->flags = AV_PKT_FLAG_KEY;
+        }
+        break;
+    default:
+        break;
     }
 
     buffer->pVtbl->GetProperty(buffer, PTS_PROP, &var);
 
     pkt->pts = var.int64Value; // original pts
 
-
     AMF_RETURN_IF_FALSE(ctx, av_fifo_read(ctx->timestamp_list, &timestamp, 1) >= 0,
                         AVERROR_UNKNOWN, "timestamp_list is empty\n");
 
     // calc dts shift if max_b_frames > 0
-    if (avctx->max_b_frames > 0 && ctx->dts_delay == 0) {
+    if (avctx->max_b_frames > 0 && ctx->dts_delay == 0)
+    {
         int64_t timestamp_last = AV_NOPTS_VALUE;
         size_t can_read = av_fifo_can_read(ctx->timestamp_list);
 
         AMF_RETURN_IF_FALSE(ctx, can_read > 0, AVERROR_UNKNOWN,
-            "timestamp_list is empty while max_b_frames = %d\n", avctx->max_b_frames);
+                            "timestamp_list is empty while max_b_frames = %d\n", avctx->max_b_frames);
         av_fifo_peek(ctx->timestamp_list, &timestamp_last, 1, can_read - 1);
-        if (timestamp < 0 || timestamp_last < AV_NOPTS_VALUE) {
+        if (timestamp < 0 || timestamp_last < AV_NOPTS_VALUE)
+        {
             return AVERROR(ERANGE);
         }
         ctx->dts_delay = timestamp_last - timestamp;
@@ -494,9 +528,12 @@ int ff_amf_encode_init(AVCodecContext *avctx)
 {
     int ret;
 
-    if ((ret = amf_load_library(avctx)) == 0) {
-        if ((ret = amf_init_context(avctx)) == 0) {
-            if ((ret = amf_init_encoder(avctx)) == 0) {
+    if ((ret = amf_load_library(avctx)) == 0)
+    {
+        if ((ret = amf_init_context(avctx)) == 0)
+        {
+            if ((ret = amf_init_encoder(avctx)) == 0)
+            {
                 return 0;
             }
         }
@@ -510,16 +547,19 @@ static AMF_RESULT amf_set_property_buffer(AMFSurface *object, const wchar_t *nam
     AMF_RESULT res;
     AMFVariantStruct var;
     res = AMFVariantInit(&var);
-    if (res == AMF_OK) {
+    if (res == AMF_OK)
+    {
         AMFGuid guid_AMFInterface = IID_AMFInterface();
         AMFInterface *amf_interface;
-        res = val->pVtbl->QueryInterface(val, &guid_AMFInterface, (void**)&amf_interface);
+        res = val->pVtbl->QueryInterface(val, &guid_AMFInterface, (void **)&amf_interface);
 
-        if (res == AMF_OK) {
+        if (res == AMF_OK)
+        {
             res = AMFVariantAssignInterface(&var, amf_interface);
             amf_interface->pVtbl->Release(amf_interface);
         }
-        if (res == AMF_OK) {
+        if (res == AMF_OK)
+        {
             res = object->pVtbl->SetProperty(object, name, var);
         }
         AMFVariantClear(&var);
@@ -532,14 +572,19 @@ static AMF_RESULT amf_get_property_buffer(AMFData *object, const wchar_t *name, 
     AMF_RESULT res;
     AMFVariantStruct var;
     res = AMFVariantInit(&var);
-    if (res == AMF_OK) {
+    if (res == AMF_OK)
+    {
         res = object->pVtbl->GetProperty(object, name, &var);
-        if (res == AMF_OK) {
-            if (var.type == AMF_VARIANT_INTERFACE) {
+        if (res == AMF_OK)
+        {
+            if (var.type == AMF_VARIANT_INTERFACE)
+            {
                 AMFGuid guid_AMFBuffer = IID_AMFBuffer();
                 AMFInterface *amf_interface = AMFVariantInterface(&var);
-                res = amf_interface->pVtbl->QueryInterface(amf_interface, &guid_AMFBuffer, (void**)val);
-            } else {
+                res = amf_interface->pVtbl->QueryInterface(amf_interface, &guid_AMFBuffer, (void **)val);
+            }
+            else
+            {
                 res = AMF_INVALID_DATA_TYPE;
             }
         }
@@ -555,11 +600,15 @@ static AMFBuffer *amf_create_buffer_with_frame_ref(const AVFrame *frame, AMFCont
     AMF_RESULT res;
 
     res = context->pVtbl->AllocBuffer(context, AMF_MEMORY_HOST, sizeof(frame_ref), &frame_ref_storage_buffer);
-    if (res == AMF_OK) {
+    if (res == AMF_OK)
+    {
         frame_ref = av_frame_clone(frame);
-        if (frame_ref) {
+        if (frame_ref)
+        {
             memcpy(frame_ref_storage_buffer->pVtbl->GetNative(frame_ref_storage_buffer), &frame_ref, sizeof(frame_ref));
-        } else {
+        }
+        else
+        {
             frame_ref_storage_buffer->pVtbl->Release(frame_ref_storage_buffer);
             frame_ref_storage_buffer = NULL;
         }
@@ -579,84 +628,98 @@ int ff_amf_receive_packet(AVCodecContext *avctx, AVPacket *avpkt)
 {
     AmfContext *ctx = avctx->priv_data;
     AMFSurface *surface;
-    AMF_RESULT  res;
-    int         ret;
-    AMF_RESULT  res_query;
-    AMFData    *data = NULL;
-    AVFrame    *frame = ctx->delayed_frame;
-    int         block_and_wait;
+    AMF_RESULT res;
+    int ret;
+    AMF_RESULT res_query;
+    AMFData *data = NULL;
+    AVFrame *frame = ctx->delayed_frame;
+    int block_and_wait;
 
     if (!ctx->encoder)
         return AVERROR(EINVAL);
 
-    if (!frame->buf[0]) {
+    if (!frame->buf[0])
+    {
         ret = ff_encode_get_frame(avctx, frame);
         if (ret < 0 && ret != AVERROR_EOF)
             return ret;
     }
 
-    if (!frame->buf[0]) { // submit drain
-        if (!ctx->eof) { // submit drain one time only
-            if (ctx->delayed_surface != NULL) {
+    if (!frame->buf[0])
+    { // submit drain
+        if (!ctx->eof)
+        { // submit drain one time only
+            if (ctx->delayed_surface != NULL)
+            {
                 ctx->delayed_drain = 1; // input queue is full: resubmit Drain() in ff_amf_receive_packet
-            } else if(!ctx->delayed_drain) {
+            }
+            else if (!ctx->delayed_drain)
+            {
                 res = ctx->encoder->pVtbl->Drain(ctx->encoder);
-                if (res == AMF_INPUT_FULL) {
+                if (res == AMF_INPUT_FULL)
+                {
                     ctx->delayed_drain = 1; // input queue is full: resubmit Drain() in ff_amf_receive_packet
-                } else {
-                    if (res == AMF_OK) {
+                }
+                else
+                {
+                    if (res == AMF_OK)
+                    {
                         ctx->eof = 1; // drain started
                     }
                     AMF_RETURN_IF_FALSE(ctx, res == AMF_OK, AVERROR_UNKNOWN, "Drain() failed with error %d\n", res);
                 }
             }
         }
-    } else if (!ctx->delayed_surface) { // submit frame
+    }
+    else if (!ctx->delayed_surface)
+    { // submit frame
         int hw_surface = 0;
 
         // prepare surface from frame
-        switch (frame->format) {
+        switch (frame->format)
+        {
 #if CONFIG_D3D11VA
         case AV_PIX_FMT_D3D11:
-            {
-                static const GUID AMFTextureArrayIndexGUID = { 0x28115527, 0xe7c3, 0x4b66, { 0x99, 0xd3, 0x4f, 0x2a, 0xe6, 0xb4, 0x7f, 0xaf } };
-                ID3D11Texture2D *texture = (ID3D11Texture2D*)frame->data[0]; // actual texture
-                int index = (intptr_t)frame->data[1]; // index is a slice in texture array is - set to tell AMF which slice to use
+        {
+            static const GUID AMFTextureArrayIndexGUID = {0x28115527, 0xe7c3, 0x4b66, {0x99, 0xd3, 0x4f, 0x2a, 0xe6, 0xb4, 0x7f, 0xaf}};
+            ID3D11Texture2D *texture = (ID3D11Texture2D *)frame->data[0]; // actual texture
+            int index = (intptr_t)frame->data[1];                         // index is a slice in texture array is - set to tell AMF which slice to use
 
-                av_assert0(frame->hw_frames_ctx       && ctx->hw_frames_ctx &&
-                           frame->hw_frames_ctx->data == ctx->hw_frames_ctx->data);
+            av_assert0(frame->hw_frames_ctx && ctx->hw_frames_ctx &&
+                       frame->hw_frames_ctx->data == ctx->hw_frames_ctx->data);
 
-                texture->lpVtbl->SetPrivateData(texture, &AMFTextureArrayIndexGUID, sizeof(index), &index);
+            texture->lpVtbl->SetPrivateData(texture, &AMFTextureArrayIndexGUID, sizeof(index), &index);
 
-                res = ctx->context->pVtbl->CreateSurfaceFromDX11Native(ctx->context, texture, &surface, NULL); // wrap to AMF surface
-                AMF_RETURN_IF_FALSE(ctx, res == AMF_OK, AVERROR(ENOMEM), "CreateSurfaceFromDX11Native() failed  with error %d\n", res);
+            res = ctx->context->pVtbl->CreateSurfaceFromDX11Native(ctx->context, texture, &surface, NULL); // wrap to AMF surface
+            AMF_RETURN_IF_FALSE(ctx, res == AMF_OK, AVERROR(ENOMEM), "CreateSurfaceFromDX11Native() failed  with error %d\n", res);
 
-                hw_surface = 1;
-            }
-            break;
+            hw_surface = 1;
+        }
+        break;
 #endif
 #if CONFIG_DXVA2
         case AV_PIX_FMT_DXVA2_VLD:
-            {
-                IDirect3DSurface9 *texture = (IDirect3DSurface9 *)frame->data[3]; // actual texture
+        {
+            IDirect3DSurface9 *texture = (IDirect3DSurface9 *)frame->data[3]; // actual texture
 
-                res = ctx->context->pVtbl->CreateSurfaceFromDX9Native(ctx->context, texture, &surface, NULL); // wrap to AMF surface
-                AMF_RETURN_IF_FALSE(ctx, res == AMF_OK, AVERROR(ENOMEM), "CreateSurfaceFromDX9Native() failed  with error %d\n", res);
+            res = ctx->context->pVtbl->CreateSurfaceFromDX9Native(ctx->context, texture, &surface, NULL); // wrap to AMF surface
+            AMF_RETURN_IF_FALSE(ctx, res == AMF_OK, AVERROR(ENOMEM), "CreateSurfaceFromDX9Native() failed  with error %d\n", res);
 
-                hw_surface = 1;
-            }
-            break;
+            hw_surface = 1;
+        }
+        break;
 #endif
         default:
-            {
-                res = ctx->context->pVtbl->AllocSurface(ctx->context, AMF_MEMORY_HOST, ctx->format, avctx->width, avctx->height, &surface);
-                AMF_RETURN_IF_FALSE(ctx, res == AMF_OK, AVERROR(ENOMEM), "AllocSurface() failed  with error %d\n", res);
-                amf_copy_surface(avctx, frame, surface);
-            }
-            break;
+        {
+            res = ctx->context->pVtbl->AllocSurface(ctx->context, AMF_MEMORY_HOST, ctx->format, avctx->width, avctx->height, &surface);
+            AMF_RETURN_IF_FALSE(ctx, res == AMF_OK, AVERROR(ENOMEM), "AllocSurface() failed  with error %d\n", res);
+            amf_copy_surface(avctx, frame, surface);
+        }
+        break;
         }
 
-        if (hw_surface) {
+        if (hw_surface)
+        {
             AMFBuffer *frame_ref_storage_buffer;
 
             // input HW surfaces can be vertically aligned by 16; tell AMF the real size
@@ -671,10 +734,70 @@ int ff_amf_receive_packet(AVCodecContext *avctx, AVPacket *avpkt)
             frame_ref_storage_buffer->pVtbl->Release(frame_ref_storage_buffer);
         }
 
+        // Override Picture Type for Frame
+        if (avctx->codec->id == AV_CODEC_ID_H264)
+        {
+            switch (frame->pict_type)
+            {
+            case AV_PICTURE_TYPE_I:
+                AMF_ASSIGN_PROPERTY_INT64(res, surface, AMF_VIDEO_ENCODER_FORCE_PICTURE_TYPE, AMF_VIDEO_ENCODER_PICTURE_TYPE_I);
+                break;
+            case AV_PICTURE_TYPE_P:
+                AMF_ASSIGN_PROPERTY_INT64(res, surface, AMF_VIDEO_ENCODER_FORCE_PICTURE_TYPE, AMF_VIDEO_ENCODER_PICTURE_TYPE_P);
+                break;
+            case AV_PICTURE_TYPE_B:
+                AMF_ASSIGN_PROPERTY_INT64(res, surface, AMF_VIDEO_ENCODER_FORCE_PICTURE_TYPE, AMF_VIDEO_ENCODER_PICTURE_TYPE_B);
+                break;
+            case AV_PICTURE_TYPE_S:
+                AMF_ASSIGN_PROPERTY_INT64(res, surface, AMF_VIDEO_ENCODER_FORCE_PICTURE_TYPE, AMF_VIDEO_ENCODER_PICTURE_TYPE_SKIP);
+                break;
+            default:
+                AMF_ASSIGN_PROPERTY_INT64(res, surface, AMF_VIDEO_ENCODER_FORCE_PICTURE_TYPE, AMF_VIDEO_ENCODER_PICTURE_TYPE_NONE);
+                break;
+            }
+            // Keyframe overrides previous assignment.
+            if (frame->key_frame)
+            {
+                av_log(ctx, AV_LOG_DEBUG, "IDR,AUD,PPS and SPS set - h264\n");
+                AMF_ASSIGN_PROPERTY_INT64(res, surface, AMF_VIDEO_ENCODER_INSERT_SPS, 1);
+                AMF_ASSIGN_PROPERTY_INT64(res, surface, AMF_VIDEO_ENCODER_INSERT_PPS, 1);
+                AMF_ASSIGN_PROPERTY_INT64(res, surface, AMF_VIDEO_ENCODER_FORCE_PICTURE_TYPE, AMF_VIDEO_ENCODER_PICTURE_TYPE_IDR);
+            }
+        }
+        else if (avctx->codec->id == AV_CODEC_ID_HEVC)
+        {
+            switch (frame->pict_type)
+            {
+            case AV_PICTURE_TYPE_I:
+                AMF_ASSIGN_PROPERTY_INT64(res, surface, AMF_VIDEO_ENCODER_HEVC_FORCE_PICTURE_TYPE, AMF_VIDEO_ENCODER_HEVC_PICTURE_TYPE_I);
+                break;
+            case AV_PICTURE_TYPE_P:
+                AMF_ASSIGN_PROPERTY_INT64(res, surface, AMF_VIDEO_ENCODER_HEVC_FORCE_PICTURE_TYPE, AMF_VIDEO_ENCODER_HEVC_PICTURE_TYPE_P);
+                break;
+            case AV_PICTURE_TYPE_B:
+                av_log(ctx, AV_LOG_WARNING, "Ignoring B-Frame, unsupported by AMD AMF H.265 Encoder.");
+                break;
+            case AV_PICTURE_TYPE_S:
+                AMF_ASSIGN_PROPERTY_INT64(res, surface, AMF_VIDEO_ENCODER_HEVC_FORCE_PICTURE_TYPE, AMF_VIDEO_ENCODER_HEVC_PICTURE_TYPE_SKIP);
+                break;
+            default:
+                AMF_ASSIGN_PROPERTY_INT64(res, surface, AMF_VIDEO_ENCODER_HEVC_FORCE_PICTURE_TYPE, AMF_VIDEO_ENCODER_HEVC_PICTURE_TYPE_NONE);
+                break;
+            }
+            // Keyframe overrides previous assignment.
+            if (frame->key_frame)
+            {
+                av_log(ctx, AV_LOG_DEBUG, "IDR,PPS and SPS set - h265\n");
+                AMF_ASSIGN_PROPERTY_INT64(res, surface, AMF_VIDEO_ENCODER_HEVC_INSERT_HEADER, 1);
+                AMF_ASSIGN_PROPERTY_INT64(res, surface, AMF_VIDEO_ENCODER_HEVC_FORCE_PICTURE_TYPE, AMF_VIDEO_ENCODER_HEVC_PICTURE_TYPE_IDR);
+            }
+        }
+
         surface->pVtbl->SetPts(surface, frame->pts);
         AMF_ASSIGN_PROPERTY_INT64(res, surface, PTS_PROP, frame->pts);
 
-        switch (avctx->codec->id) {
+        switch (avctx->codec->id)
+        {
         case AV_CODEC_ID_H264:
             AMF_ASSIGN_PROPERTY_INT64(res, surface, AMF_VIDEO_ENCODER_INSERT_AUD, !!ctx->aud);
             break;
@@ -686,11 +809,14 @@ int ff_amf_receive_packet(AVCodecContext *avctx, AVPacket *avpkt)
         }
 
         // submit surface
-        res = ctx->encoder->pVtbl->SubmitInput(ctx->encoder, (AMFData*)surface);
-        if (res == AMF_INPUT_FULL) { // handle full queue
-            //store surface for later submission
+        res = ctx->encoder->pVtbl->SubmitInput(ctx->encoder, (AMFData *)surface);
+        if (res == AMF_INPUT_FULL)
+        { // handle full queue
+            // store surface for later submission
             ctx->delayed_surface = surface;
-        } else {
+        }
+        else
+        {
             int64_t pts = frame->pts;
             surface->pVtbl->Release(surface);
             AMF_RETURN_IF_FALSE(ctx, res == AMF_OK, AVERROR_UNKNOWN, "SubmitInput() failed with error %d\n", res);
@@ -702,21 +828,23 @@ int ff_amf_receive_packet(AVCodecContext *avctx, AVPacket *avpkt)
         }
     }
 
-
-    do {
+    do
+    {
         block_and_wait = 0;
         // poll data
         res_query = ctx->encoder->pVtbl->QueryOutput(ctx->encoder, &data);
-        if (data) {
+        if (data)
+        {
             // copy data to packet
-            AMFBuffer* buffer;
+            AMFBuffer *buffer;
             AMFGuid guid = IID_AMFBuffer();
-            data->pVtbl->QueryInterface(data, &guid, (void**)&buffer); // query for buffer interface
+            data->pVtbl->QueryInterface(data, &guid, (void **)&buffer); // query for buffer interface
             ret = amf_copy_buffer(avctx, avpkt, buffer);
 
             buffer->pVtbl->Release(buffer);
 
-            if (data->pVtbl->HasProperty(data, L"av_frame_ref")) {
+            if (data->pVtbl->HasProperty(data, L"av_frame_ref"))
+            {
                 AMFBuffer *frame_ref_storage_buffer;
                 res = amf_get_property_buffer(data, L"av_frame_ref", &frame_ref_storage_buffer);
                 AMF_RETURN_IF_FALSE(ctx, res == AMF_OK, AVERROR_UNKNOWN, "GetProperty failed for \"av_frame_ref\" with error %d\n", res);
@@ -728,9 +856,11 @@ int ff_amf_receive_packet(AVCodecContext *avctx, AVPacket *avpkt)
 
             AMF_RETURN_IF_FALSE(ctx, ret >= 0, ret, "amf_copy_buffer() failed with error %d\n", ret);
 
-            if (ctx->delayed_surface != NULL) { // try to resubmit frame
-                res = ctx->encoder->pVtbl->SubmitInput(ctx->encoder, (AMFData*)ctx->delayed_surface);
-                if (res != AMF_INPUT_FULL) {
+            if (ctx->delayed_surface != NULL)
+            { // try to resubmit frame
+                res = ctx->encoder->pVtbl->SubmitInput(ctx->encoder, (AMFData *)ctx->delayed_surface);
+                if (res != AMF_INPUT_FULL)
+                {
                     int64_t pts = ctx->delayed_surface->pVtbl->GetPts(ctx->delayed_surface);
                     ctx->delayed_surface->pVtbl->Release(ctx->delayed_surface);
                     ctx->delayed_surface = NULL;
@@ -740,30 +870,44 @@ int ff_amf_receive_packet(AVCodecContext *avctx, AVPacket *avpkt)
                     ret = av_fifo_write(ctx->timestamp_list, &pts, 1);
                     if (ret < 0)
                         return ret;
-                } else {
+                }
+                else
+                {
                     av_log(avctx, AV_LOG_WARNING, "Data acquired but delayed frame submission got AMF_INPUT_FULL- should not happen\n");
                 }
-            } else if (ctx->delayed_drain) { // try to resubmit drain
+            }
+            else if (ctx->delayed_drain)
+            { // try to resubmit drain
                 res = ctx->encoder->pVtbl->Drain(ctx->encoder);
-                if (res != AMF_INPUT_FULL) {
+                if (res != AMF_INPUT_FULL)
+                {
                     ctx->delayed_drain = 0;
                     ctx->eof = 1; // drain started
                     AMF_RETURN_IF_FALSE(ctx, res == AMF_OK, AVERROR_UNKNOWN, "Repeated Drain() failed with error %d\n", res);
-                } else {
+                }
+                else
+                {
                     av_log(avctx, AV_LOG_WARNING, "Data acquired but delayed drain submission got AMF_INPUT_FULL- should not happen\n");
                 }
             }
-        } else if (ctx->delayed_surface != NULL || ctx->delayed_drain || (ctx->eof && res_query != AMF_EOF) || (ctx->hwsurfaces_in_queue >= ctx->hwsurfaces_in_queue_max)) {
+        }
+        else if (ctx->delayed_surface != NULL || ctx->delayed_drain || (ctx->eof && res_query != AMF_EOF) || (ctx->hwsurfaces_in_queue >= ctx->hwsurfaces_in_queue_max))
+        {
             block_and_wait = 1;
             av_usleep(1000); // wait and poll again
         }
     } while (block_and_wait);
 
-    if (res_query == AMF_EOF) {
+    if (res_query == AMF_EOF)
+    {
         ret = AVERROR_EOF;
-    } else if (data == NULL) {
+    }
+    else if (data == NULL)
+    {
         ret = AVERROR(EAGAIN);
-    } else {
+    }
+    else
+    {
         ret = 0;
     }
     return ret;
@@ -772,11 +916,11 @@ int ff_amf_receive_packet(AVCodecContext *avctx, AVPacket *avpkt)
 const AVCodecHWConfigInternal *const ff_amfenc_hw_configs[] = {
 #if CONFIG_D3D11VA
     HW_CONFIG_ENCODER_FRAMES(D3D11, D3D11VA),
-    HW_CONFIG_ENCODER_DEVICE(NONE,  D3D11VA),
+    HW_CONFIG_ENCODER_DEVICE(NONE, D3D11VA),
 #endif
 #if CONFIG_DXVA2
     HW_CONFIG_ENCODER_FRAMES(DXVA2_VLD, DXVA2),
-    HW_CONFIG_ENCODER_DEVICE(NONE,      DXVA2),
+    HW_CONFIG_ENCODER_DEVICE(NONE, DXVA2),
 #endif
     NULL,
 };
